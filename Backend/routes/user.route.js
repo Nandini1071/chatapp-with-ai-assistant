@@ -3,7 +3,9 @@ import { body } from "express-validator";
 import {
   createUserController,
   loginController,
+  profileController,
 } from "../controllers/user.controller.js";
+import { authUser } from "../middlewares/auth.middleware.js";
 
 const userRouter = Router();
 
@@ -24,5 +26,6 @@ userRouter.post(
     .withMessage("Password must be 3 character long."),
   loginController
 );
+userRouter.get("/profile", authUser, profileController);
 
 export default userRouter;
