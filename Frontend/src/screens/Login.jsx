@@ -1,10 +1,13 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "../config/axios";
+import { userContext } from "../context/UserContext";
+import { useContext } from "react";
 
 const Login = () => {
   const [email, setemail] = useState("");
   const [password, setpassword] = useState("");
+  const { setuser } = useContext(userContext);
   const navigate = useNavigate();
 
   const submitHandler = (e) => {
@@ -16,6 +19,7 @@ const Login = () => {
       })
       .then((res) => {
         console.log(res.data);
+        setuser(res.data.user);
         navigate("/");
       })
       .catch((err) => {

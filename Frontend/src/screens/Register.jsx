@@ -1,11 +1,14 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "../config/axios";
+import { useContext } from "react";
+import { userContext } from "../context/UserContext";
 
 const Register = () => {
   const [email, setemail] = useState("");
   const [password, setpassword] = useState("");
   const navigate = useNavigate();
+  const { setuser } = useContext(userContext);
 
   const submitHandler = (e) => {
     e.preventDefault();
@@ -16,6 +19,8 @@ const Register = () => {
       })
       .then((res) => {
         console.log(res.data);
+        localStorage.setItem("token", res.data.token);
+        setuser(res.data.user);
         navigate("/");
       })
       .catch((err) => {
