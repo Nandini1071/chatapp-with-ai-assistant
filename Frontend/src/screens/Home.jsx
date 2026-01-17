@@ -1,12 +1,27 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useContext } from "react";
 import { userContext } from "../context/UserContext";
 import axios from "../config/axios";
+import { useNavigate } from "react-router-dom";
 
 const Home = () => {
   const { user } = useContext(userContext);
   const [isModal, setisModal] = useState(false);
   const [projectName, setprojectName] = useState("");
+  const [projectList, setprojectList] = useState([]);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    axios
+      .get("/projects/all")
+      .then((res) => {
+        console.log(res.data);
+        setprojectList(res.data.projects);
+      })
+      .catch((err) => {
+        console.log(err);
+      });
+  }, []);
 
   function createProject(e) {
     e.preventDefault();
@@ -26,7 +41,7 @@ const Home = () => {
   return (
     <div>
       <main className="p-4">
-        <div className="projects">
+        <div className="projects flex flex-wrap gap-3">
           <button
             onClick={() => setisModal(true)}
             className="project p-4 border border-slate-300 rounded-md cursor-pointer"
@@ -34,6 +49,31 @@ const Home = () => {
             New Project
             <i className="ri-link ml-2"></i>
           </button>
+          {projectList.map((project) => (
+            <div
+              key={project._id}
+              onClick={() => {
+                navigate(`/project`, {
+                  state: { projectList },
+                });
+              }}
+              className="project flex flex-col gap-2 p-4 border border-slate-300 rounded-md min-w-52 hover:bg-slate-200"
+            >
+              <h2 className="font-semibold cursor-pointer">{project.name}</h2>
+
+              <div className="flex gap-2">
+                <p>
+                  {" "}
+                  <small>
+                    {" "}
+                    <i className="ri-user-line"></i> Collaborators
+                  </small>{" "}
+                  :
+                </p>
+                {project.users.length}
+              </div>
+            </div>
+          ))}
         </div>
         {isModal && (
           <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
