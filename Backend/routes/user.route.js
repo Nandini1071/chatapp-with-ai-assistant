@@ -4,7 +4,8 @@ import {
   createUserController,
   loginController,
   profileController,
-  logoutController
+  logoutController,
+  getAllUserController,
 } from "../controllers/user.controller.js";
 import { authUser } from "../middlewares/auth.middleware.js";
 
@@ -29,5 +30,5 @@ userRouter.post(
 );
 userRouter.get("/profile", authUser, profileController);
 userRouter.get("/logout", authUser, logoutController);
-
+userRouter.get("/all", authUser, getAllUserController);
 export default userRouter;

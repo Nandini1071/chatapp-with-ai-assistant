@@ -11,11 +11,11 @@ const projectSchema = new mongoose.Schema({
   users: [
     {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "users",
+      ref: "User",
     },
   ],
 });
 
-const Project = mongoose.model("project", projectSchema);
+const Project = mongoose.model("Project", projectSchema);
 
 export default Project;

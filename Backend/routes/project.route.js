@@ -3,7 +3,8 @@ import { body } from "express-validator";
 import {
   createProjectController,
   getAllProjectController,
-  addUserToProjectController
+  addUserToProjectController,
+  getProjectIdController,
 } from "../controllers/project.controller.js";
 import { authUser } from "../middlewares/auth.middleware.js";
 
@@ -28,6 +29,7 @@ projectRouter.put(
     .bail()
     .custom((users) => users.every((user) => typeof user === "string"))
     .withMessage("Each user must be a string"),
-    addUserToProjectController
+  addUserToProjectController
 );
+projectRouter.get("/get-project/:projectId", authUser, getProjectIdController);
 export default projectRouter;
