@@ -54,7 +54,7 @@ const Home = () => {
               key={project._id}
               onClick={() => {
                 navigate(`/project`, {
-                  state: { projectList },
+                  state: { project },
                 });
               }}
               className="project flex flex-col gap-2 p-4 border border-slate-300 rounded-md min-w-52 hover:bg-slate-200"

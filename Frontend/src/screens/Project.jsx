@@ -1,14 +1,61 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
+import axios from "../config/axios";
 
 const Project = () => {
   const location = useLocation();
   const [sidePanelOpen, setsidePanelOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState(new Set()); // Initialized as Set
+  const [users, setUsers] = useState([]);
+
+  console.log(location)
+  const handleUserClick = (id) => {
+    setSelectedUserId((prevSelectedUserId) => {
+      const newSelectedUserId = new Set(prevSelectedUserId);
+      if (newSelectedUserId.has(id)) {
+        newSelectedUserId.delete(id);
+      } else {
+        newSelectedUserId.add(id);
+      }
+
+      return newSelectedUserId;
+    });
+  };
+  
+  function addCollaborators(){
+    axios.put("/projects/add-user",{
+      projectId: location.state.project._id,
+      users: Array.from(selectedUserId)
+    }).then(()=>{
+      setIsModalOpen(false)
+    }).catch((err)=>{
+      console.log(err)
+    })
+  }
+  useEffect(() => {
+    axios
+      .get("/users/all")
+      .then((res) => {
+        setUsers(res.data.users);
+        console.log(users);
+      })
+      .catch((err) => {
+        console.log(err);
+      });
+  }, []);
 
   return (
     <main className="h-screen w-screen flex">
       <section className="left flex flex-col h-full min-w-96 bg-slate-300 relative">
-        <header className="flex justify-end p-2 px-4 w-full bg-slate-100">
+        <header className="flex justify-between items-center p-2 px-4 w-full bg-slate-100">
+          <button
+            className="flex gap-2 cursor-pointer"
+            onClick={() => setIsModalOpen(true)}
+          >
+            <i className="ri-add-fill mr-1"></i>
+            <p>Add Collaborator</p>
+          </button>
           <button
             className="p-2"
             onClick={() => setsidePanelOpen(!sidePanelOpen)}
@@ -59,6 +106,38 @@ const Project = () => {
           </div>
         </div>
       </section>
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black flex items-center justify-center">
+          <div className="bg-white p-4 rounded-md w-96 relative">
+            <header className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Select User</h2>
+              <button
+                className="cursor-pointer"
+                onClick={() => setIsModalOpen(false)}
+              >
+                <i className="ri-close-fill"></i>
+              </button>
+            </header>
+            <div className="users-list flex flex-col gap-2 mb-6 max-h-96 overflow-auto">
+              {users.map((user) => (
+                <div
+                  key={user.id}
+                  className={`user cursor-pointer hover:bg-slate-300 ${Array.from(selectedUserId).indexOf(user._id) != -1 ? "bg-slate-200" : ""} p-2 flex gap-2 items-center`}
+                  onClick={() => handleUserClick(user._id)}
+                >
+                  <div className="aspect-square relative rounded-full w-fit h-fit flex items-center justify-center p-5 text-white bg-slate-600">
+                    <i className="ri-user-fill absolute"></i>
+                  </div>
+                  <h1 className="font-semibold text-lg">{user.email}</h1>
+                </div>
+              ))}
+            </div>
+            <button className="w-full mt-3 px-4 py-2 bg-blue-600 text-white rounded-md" onClick={addCollaborators}>
+              Add Collaborators
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 };
