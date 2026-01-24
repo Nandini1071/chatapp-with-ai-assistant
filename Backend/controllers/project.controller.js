@@ -62,6 +62,7 @@ export const addUserToProjectController = async (req, res) => {
   }
 };
 export const getProjectIdController = async (req, res) => {
+  console.log("Controller HIT");
   const { projectId } = req.params;
   try {
     const project = await getProjectById({ projectId });

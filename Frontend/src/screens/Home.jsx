@@ -10,12 +10,11 @@ const Home = () => {
   const [projectName, setprojectName] = useState("");
   const [projectList, setprojectList] = useState([]);
   const navigate = useNavigate();
-
   useEffect(() => {
     axios
       .get("/projects/all")
       .then((res) => {
-        console.log(res.data);
+        console.log("data",res.data);
         setprojectList(res.data.projects);
       })
       .catch((err) => {

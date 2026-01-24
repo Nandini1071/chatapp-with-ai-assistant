@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import axios from "../config/axios";
+import { intializeSocket,recieveMessage,sendMessage } from "../config/socket.js";
 
 const Project = () => {
   const location = useLocation();
@@ -8,8 +9,8 @@ const Project = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState(new Set()); // Initialized as Set
   const [users, setUsers] = useState([]);
+  const [project, setproject] = useState(location.state.project);
 
-  console.log(location)
   const handleUserClick = (id) => {
     setSelectedUserId((prevSelectedUserId) => {
       const newSelectedUserId = new Set(prevSelectedUserId);
@@ -22,23 +23,36 @@ const Project = () => {
       return newSelectedUserId;
     });
   };
-  
-  function addCollaborators(){
-    axios.put("/projects/add-user",{
-      projectId: location.state.project._id,
-      users: Array.from(selectedUserId)
-    }).then(()=>{
-      setIsModalOpen(false)
-    }).catch((err)=>{
-      console.log(err)
-    })
+
+  function addCollaborators() {
+    axios
+      .put("/projects/add-user", {
+        projectId: location.state.project._id,
+        users: Array.from(selectedUserId),
+      })
+      .then(() => {
+        setIsModalOpen(false);
+      })
+      .catch((err) => {
+        console.log(err);
+      });
   }
   useEffect(() => {
+
+    intializeSocket();
     axios
       .get("/users/all")
       .then((res) => {
         setUsers(res.data.users);
-        console.log(users);
+      })
+      .catch((err) => {
+        console.log(err);
+      });
+
+    axios
+      .get(`/projects/get-project/${location.state.project._id}`)
+      .then((res) => {
+        setproject(res.data.project);
       })
       .catch((err) => {
         console.log(err);
@@ -88,7 +102,8 @@ const Project = () => {
         <div
           className={`w-full h-full absolute bg-slate-50 flex flex-col gap-2 transition-all ${sidePanelOpen ? "translate-x-0" : "-translate-x-full"} top-0`}
         >
-          <header className="flex justify-end p-2 px-3 bg-slate-200">
+          <header className="flex justify-between items-center p-3 px-3 bg-slate-200">
+            <h1 className="font-semibold text-lg">Collaborators</h1>
             <button
               className="cursor-pointer"
               onClick={() => setsidePanelOpen(!sidePanelOpen)}
@@ -97,12 +112,20 @@ const Project = () => {
             </button>
           </header>
           <div className="flex flex-col gap-2">
-            <div className="flex gap-2 items-center cursor-pointer hover:bg-slate-200 p-2">
-              <div className="rounded-full p-5 bg-slate-600 w-fit h-fit flex items-center justify-center relative text-white">
-                <i className="ri-user-fill absolute"></i>
-              </div>
-              <h1 className="font-semibold text-lg">username</h1>
-            </div>
+            {project.users &&
+              project.users.map((user) => {
+                return (
+                  <div
+                    className="flex gap-2 items-center cursor-pointer hover:bg-slate-200 p-2"
+                    key={user.email}
+                  >
+                    <div className="rounded-full p-5 bg-slate-600 w-fit h-fit flex items-center justify-center relative text-white">
+                      <i className="ri-user-fill absolute"></i>
+                    </div>
+                    <h1 className="font-semibold text-lg">{user.email}</h1>
+                  </div>
+                );
+              })}
           </div>
         </div>
       </section>
@@ -132,7 +155,10 @@ const Project = () => {
                 </div>
               ))}
             </div>
-            <button className="w-full mt-3 px-4 py-2 bg-blue-600 text-white rounded-md" onClick={addCollaborators}>
+            <button
+              className="w-full mt-3 px-4 py-2 bg-blue-600 text-white rounded-md"
+              onClick={addCollaborators}
+            >
               Add Collaborators
             </button>
           </div>
