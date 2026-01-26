@@ -7,19 +7,24 @@ import { useContext } from "react";
 const Login = () => {
   const [email, setemail] = useState("");
   const [password, setpassword] = useState("");
-  const { setuser } = useContext(userContext);
+  const { setUser } = useContext(userContext);
   const navigate = useNavigate();
 
   const submitHandler = (e) => {
     e.preventDefault();
+
     axios
-      .post("/users/login", {
-        email,
-        password,
-      })
+      .post("/users/login", { email, password })
       .then((res) => {
-        console.log(res.data);
-        setuser(res.data.user);
+        const { token, user } = res.data;
+
+        // Save token to localStorage
+        localStorage.setItem("token", token);
+        
+        // Update context with user data
+        setUser(user);
+        
+        // Navigate to home
         navigate("/");
       })
       .catch((err) => {

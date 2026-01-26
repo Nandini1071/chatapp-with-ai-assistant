@@ -1,7 +1,12 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { useLocation } from "react-router-dom";
 import axios from "../config/axios";
-import { intializeSocket,recieveMessage,sendMessage } from "../config/socket.js";
+import {
+  intializeSocket,
+  recieveMessage,
+  sendMessage,
+} from "../config/socket.js";
+import { userContext } from "../context/UserContext.jsx";
 
 const Project = () => {
   const location = useLocation();
@@ -10,6 +15,8 @@ const Project = () => {
   const [selectedUserId, setSelectedUserId] = useState(new Set()); // Initialized as Set
   const [users, setUsers] = useState([]);
   const [project, setproject] = useState(location.state.project);
+  const [message, setmessage] = useState("");
+  const { user } = useContext(userContext);
 
   const handleUserClick = (id) => {
     setSelectedUserId((prevSelectedUserId) => {
@@ -37,9 +44,21 @@ const Project = () => {
         console.log(err);
       });
   }
-  useEffect(() => {
 
-    intializeSocket();
+  function sendMess() {
+    console.log(user)
+    sendMessage("project-message", {
+      message,
+      sender: user._id,
+    });
+    setmessage("");
+  }
+
+  useEffect(() => {
+    intializeSocket(project._id);
+    recieveMessage("project-message", (data) => {
+      console.log(data);
+    });
     axios
       .get("/users/all")
       .then((res) => {
@@ -91,10 +110,15 @@ const Project = () => {
           <div className="input-field w-full flex">
             <input
               type="text"
+              value={message}
+              onChange={(e) => setmessage(e.target.value)}
               placeholder="Enter message"
               className="p-2 px-4 border-none outline-none flex grow bg-white"
             />
-            <button className="cursor-pointer px-5 bg-slate-950 text-white">
+            <button
+              className="cursor-pointer px-5 bg-slate-950 text-white"
+              onClick={sendMess}
+            >
               <i className="ri-send-plane-fill w-10 h-10"></i>
             </button>
           </div>

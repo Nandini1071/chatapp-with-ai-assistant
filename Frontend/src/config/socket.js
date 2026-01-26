@@ -2,10 +2,13 @@ import socket from "socket.io-client";
 
 let socketInstance = null;
 
-export const intializeSocket = () => {
+export const intializeSocket = (projectId) => {
   socketInstance = socket("http://localhost:3000",{
     auth:{
         token: localStorage.getItem('token')
+    },
+    query:{
+      projectId
     }
   });
   return socketInstance;

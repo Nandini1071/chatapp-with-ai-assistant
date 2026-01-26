@@ -3,6 +3,8 @@ import app from "./app.js";
 import dotenv from "dotenv";
 import { Server } from "socket.io";
 import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
+import Project from "./models/project.model.js";
 
 dotenv.config();
 
@@ -15,11 +17,17 @@ const io = new Server(server, {
   },
 });
 
-io.use((socket, next) => {
+io.use(async (socket, next) => {
   try {
     const token =
       socket.handshake.auth?.token ||
       socket.handshake.headers.authorization?.split(" ")[1];
+
+    const projectId = socket.handshake.query.projectId;
+    if (!mongoose.Types.ObjectId.isValid(projectId)) {
+      return next(new Error("Invalid ProjectId!"));
+    }
+    socket.project = await Project.findById(projectId);
     if (!token) {
       return next(new Error("Authentication Error!"));
     }
@@ -36,6 +44,11 @@ io.use((socket, next) => {
 
 io.on("connection", (socket) => {
   console.log("connected");
+  socket.join(socket.project._id);
+  socket.on("project-message", (data) => {
+    console.log(data)
+    socket.broadcast.to(socket.project._id).emit("project-message", data);
+  });
   socket.on("event", (data) => {
     /* … */
   });

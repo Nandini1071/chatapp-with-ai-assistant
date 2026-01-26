@@ -1,17 +1,48 @@
-import React from "react";
-import { useState } from "react";
-import { createContext } from "react";
+import { createContext, useEffect, useState } from "react";
+import { jwtDecode } from "jwt-decode";
 
 export const userContext = createContext();
 
 const UserContext = ({ children }) => {
-  const [user, setuser] = useState(null);
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const decodeToken = (token) => {
+    if (!token) {
+      setUser(null);
+      return;
+    }
+
+    try {
+      const decoded = jwtDecode(token);
+      setUser(decoded);
+    } catch (err) {
+      console.error("JWT decode error:", err);
+      localStorage.removeItem("token");
+      setUser(null);
+    }
+  };
+
+  useEffect(() => {
+    // Check token on component mount
+    const token = localStorage.getItem("token");
+    decodeToken(token);
+    setLoading(false);
+
+    // Listen for storage changes (when token is set in another tab/window)
+    const handleStorageChange = () => {
+      const newToken = localStorage.getItem("token");
+      decodeToken(newToken);
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, []);
+
   return (
-    <div>
-      <userContext.Provider value={{ user, setuser }}>
-        {children}
-      </userContext.Provider>
-    </div>
+    <userContext.Provider value={{ user, setUser, loading }}>
+      {children}
+    </userContext.Provider>
   );
 };
 
