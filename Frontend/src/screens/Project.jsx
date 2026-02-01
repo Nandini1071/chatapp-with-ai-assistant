@@ -15,6 +15,7 @@ const Project = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState(new Set()); // Initialized as Set
   const [users, setUsers] = useState([]);
+  const [messages, setMessages] = useState([]); // New state variable for messages
   const [project, setproject] = useState(location.state.project);
   const [message, setmessage] = useState("");
   const { user } = useContext(userContext);
@@ -53,7 +54,8 @@ const Project = () => {
       message,
       sender: user,
     });
-    appendOutgointMessage(message);
+    // appendOutgointMessage(message);
+    setMessages((prevMessages) => [...prevMessages, { sender: user, message }]); // Update messages state
     setmessage("");
   }
 
@@ -62,7 +64,8 @@ const Project = () => {
 
     const handleProjectMessage = (data) => {
       console.log(data);
-      appendIncomingMessages(data);
+      // appendIncomingMessages(data);
+      setMessages((prevMessages) => [...prevMessages, data]); // Update messages state
     };
 
     // attach handler directly to socket and cleanup on unmount
@@ -92,60 +95,12 @@ const Project = () => {
     };
   }, [project._id]);
 
-  function appendOutgointMessage(messageObject) {
-    const messageBox = document.querySelector(".message-box");
-
-    const newMessage = document.createElement("div");
-    newMessage.classList.add(
-      "ml-auto",
-      "max-w-56",
-      "message",
-      "flex",
-      "flex-col",
-      "p-2",
-      "bg-slate-50",
-      "w-fit",
-      "rounded-md",
-    );
-    newMessage.innerHTML = `
-                    <small class='opacity-65 text-xs'>${user.email}</small>
-                    <p class='text-sm'>${message}</p>
-                `;
-    messageBox.appendChild(newMessage);
-    scrollToBottom();
-  }
-  function appendIncomingMessages(messageObject) {
-    const messageBox = document.querySelector(".message-box");
-    const message = document.createElement("div");
-    message.classList.add(
-      "message",
-      "max-w-56",
-      "flex",
-      "flex-col",
-      "p-2",
-      "bg-slate-50",
-      "w-fit",
-      "rounded-md",
-    );
-    if (messageObject.sender._id === "ai") {
-      const markdown = <Markdown>(messageObject.message)</Markdown>;
-      message.innerHTML = `
-        <small class='opacity-65 text-xs'>${messageObject.sender.email}</small>
-                <p class='text-sm'>${markdown}</p>
-      `;
-    } else {
-      message.innerHTML = `
-      <small class='opacity-65 text-xs'>${messageObject.sender.email}</small>
-                <p class='text-sm'>${messageObject.message}</p>
-    `;
-      messageBox.appendChild(message);
-    }
-    scrollToBottom();
-  }
-
   function scrollToBottom() {
     messageRef.current.scrollTop = messageRef.current.scrollHeight;
   }
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   return (
     <main className="h-screen w-screen flex">
@@ -168,8 +123,44 @@ const Project = () => {
         <div className="conversation-area pt-14 pb-10 flex flex-col grow relative max-h-full">
           <div
             ref={messageRef}
-            className="message-box grow flex flex-col gap-1 p-1 overflow-auto max-h-full"
-          ></div>
+            className="message-box grow flex flex-col gap-2 p-2 overflow-auto max-h-full"
+          >
+            {messages.map((msg, index) => {
+              // Some tokens only include `email` (no `_id`), so compare by `_id` OR `email`.
+              const isMe =
+                (msg.sender?._id && user?._id && msg.sender._id === user._id) ||
+                msg.sender?.email === user?.email;
+
+              // Detect AI sender by `_id` or by email/name fallback.
+              const isAI =
+                msg.sender?._id === "ai" ||
+                (typeof msg.sender?.email === "string" && msg.sender.email.toLowerCase() === "ai");
+
+              return (
+                <div key={index} className={`flex w-full ${isMe ? "justify-end" : "justify-start"}`}>
+                
+                  <div
+                    className={`max-w-[70%] p-2 rounded-md text-sm ${
+                      isMe
+                        ? "bg-blue-500 text-white"
+                        : "bg-slate-100 text-black"
+                    }`}
+                  >
+                    <small className="opacity-60 block mb-1">
+                      {isAI ? "AI Assistant" : msg.sender?.email}
+                    </small>
+
+                    {isAI ? (
+                      <Markdown>{msg.message}</Markdown>
+                    ) : (
+                      <p>{msg.message}</p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
           <div className="input-field w-full flex absolute bottom-0">
             <input
               type="text"
