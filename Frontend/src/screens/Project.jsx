@@ -7,6 +7,7 @@ import {
   sendMessage,
 } from "../config/socket.js";
 import { userContext } from "../context/UserContext.jsx";
+import Markdown from "markdown-to-jsx";
 
 const Project = () => {
   const location = useLocation();
@@ -126,11 +127,19 @@ const Project = () => {
       "w-fit",
       "rounded-md",
     );
-    message.innerHTML = `
+    if (messageObject.sender._id === "ai") {
+      const markdown = <Markdown>(messageObject.message)</Markdown>;
+      message.innerHTML = `
+        <small class='opacity-65 text-xs'>${messageObject.sender.email}</small>
+                <p class='text-sm'>${markdown}</p>
+      `;
+    } else {
+      message.innerHTML = `
       <small class='opacity-65 text-xs'>${messageObject.sender.email}</small>
                 <p class='text-sm'>${messageObject.message}</p>
     `;
-    messageBox.appendChild(message);
+      messageBox.appendChild(message);
+    }
     scrollToBottom();
   }
 
@@ -157,10 +166,10 @@ const Project = () => {
           </button>
         </header>
         <div className="conversation-area pt-14 pb-10 flex flex-col grow relative max-h-full">
-            <div
-              ref={messageRef}
-              className="message-box grow flex flex-col gap-1 p-1 overflow-auto max-h-full"
-            ></div>
+          <div
+            ref={messageRef}
+            className="message-box grow flex flex-col gap-1 p-1 overflow-auto max-h-full"
+          ></div>
           <div className="input-field w-full flex absolute bottom-0">
             <input
               type="text"
