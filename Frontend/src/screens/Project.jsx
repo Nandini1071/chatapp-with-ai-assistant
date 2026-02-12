@@ -1,11 +1,7 @@
 import React, { useState, useEffect, useContext, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import axios from "../config/axios";
-import {
-  intializeSocket,
-  recieveMessage,
-  sendMessage,
-} from "../config/socket.js";
+import { intializeSocket, sendMessage } from "../config/socket.js";
 import { userContext } from "../context/UserContext.jsx";
 import Markdown from "markdown-to-jsx";
 
@@ -13,13 +9,45 @@ const Project = () => {
   const location = useLocation();
   const [sidePanelOpen, setsidePanelOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedUserId, setSelectedUserId] = useState(new Set()); // Initialized as Set
+  const [selectedUserId, setSelectedUserId] = useState(new Set());
   const [users, setUsers] = useState([]);
-  const [messages, setMessages] = useState([]); // New state variable for messages
+  const [fileTree, setfileTree] = useState({
+    "app.js": {
+      content: `const express=require('express);`,
+    },
+    "package.json": {
+      content: `{
+          "name" "temp-server",
+        }`,
+    },
+  });
+  const [currentFile, setcurrentFile] = useState(null);
+  const [openFiles, setopenFiles] = useState([])
+  const [messages, setMessages] = useState([]);
   const [project, setproject] = useState(location.state.project);
   const [message, setmessage] = useState("");
   const { user } = useContext(userContext);
   const messageRef = useRef();
+
+  // Safely parse incoming message payloads for rendering.
+  // Handles raw strings, JSON-encoded strings, and common object shapes.
+  function parseMessageField(raw) {
+    if (raw === null || raw === undefined) return "";
+    try {
+      const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+
+      if (parsed && typeof parsed === "object") {
+        if (typeof parsed.content === "string") return parsed.content;
+        if (typeof parsed.text === "string") return parsed.text;
+        if (typeof parsed.markdown === "string") return parsed.markdown;
+        return JSON.stringify(parsed);
+      }
+
+      return String(parsed);
+    } catch (err) {
+      return String(raw);
+    }
+  }
 
   const handleUserClick = (id) => {
     setSelectedUserId((prevSelectedUserId) => {
@@ -134,11 +162,14 @@ const Project = () => {
               // Detect AI sender by `_id` or by email/name fallback.
               const isAI =
                 msg.sender?._id === "ai" ||
-                (typeof msg.sender?.email === "string" && msg.sender.email.toLowerCase() === "ai");
+                (typeof msg.sender?.email === "string" &&
+                  msg.sender.email.toLowerCase() === "ai");
 
               return (
-                <div key={index} className={`flex w-full ${isMe ? "justify-end" : "justify-start"}`}>
-                
+                <div
+                  key={index}
+                  className={`flex w-full ${isMe ? "justify-end" : "justify-start"}`}
+                >
                   <div
                     className={`max-w-[70%] p-2 rounded-md text-sm ${
                       isMe
@@ -150,11 +181,14 @@ const Project = () => {
                       {isAI ? "AI Assistant" : msg.sender?.email}
                     </small>
 
-                    {isAI ? (
-                      <Markdown>{msg.message}</Markdown>
-                    ) : (
-                      <p>{msg.message}</p>
-                    )}
+                    {(() => {
+                      const content = parseMessageField(msg.message);
+                      return isAI ? (
+                        <Markdown>{content}</Markdown>
+                      ) : (
+                        <p>{content}</p>
+                      );
+                    })()}
                   </div>
                 </div>
               );
@@ -206,6 +240,60 @@ const Project = () => {
               })}
           </div>
         </div>
+      </section>
+      <section className="right bg-red-50 flex grow h-full">
+        <div className="explore h-full max-w-64 bg-slate-200 min-w-52">
+          <div className="file-tree w-full">
+            {Object.keys(fileTree).map((file, index) => (
+              <button
+                onClick={() => {
+                  setcurrentFile(file);
+                  setopenFiles([...new Set([...openFiles, file])]);
+                }}
+                key={index} 
+                className="tree-element px-4 p-2 flex items-center gap-2 bg-slate-300 w-full cursor-pointer"
+              >
+                <p className="font-semibold text-lg">{file}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+        {currentFile && (
+          <div className="code-editor flex flex-col grow h-full">
+            <div className="code-editor-header flex items-center p-2 bg-slate-200">
+              {
+                openFiles.map((file, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setcurrentFile(file)}
+                    className={`px-3 py-1 rounded-t-md ${currentFile === file ? "bg-white" : "bg-slate-300"}`}
+                  >
+                    {file}
+                  </button>
+                ))
+              }
+              <button className="p-2" onClick={() => setcurrentFile(null)}>
+                <i className="ri-close-fill"></i>
+              </button>
+            </div>
+            <div className="editor-content grow w-full">
+              {fileTree[currentFile] && (
+                <textarea
+                  value={fileTree[currentFile].content}
+                  onChange={(e) => {
+                    setfileTree({
+                      ...fileTree,
+                      [currentFile]: {
+                        content: e.target.value,
+                      },
+                    });
+                  }}
+                  className="w-full h-full p-4 bg-slate-50 outline-none border-none resize-none"
+                />
+              )}
+            </div>
+          </div>
+        )}
       </section>
       {isModalOpen && (
         <div className="fixed inset-0 bg-black flex items-center justify-center">
