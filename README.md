@@ -166,41 +166,11 @@ npm run dev
 
 ## 🔮 Upcoming Features (Roadmap)
 
-### Phase 1: Enhanced Editing (Q1 2026)
-- **Syntax Highlighting** — Integrate CodeMirror or Monaco Editor with language detection based on file extension.
 - **Multi-file Batch Edit** — Edit multiple files and save all changes at once.
 - **File Templates** — Pre-built templates for common project types (React, Node, Django, etc.).
 - **Live Preview** — Preview generated HTML/React projects in an embedded browser window.
-
-### Phase 2: Project Management (Q2 2026)
-- **Clone/Fork Projects** — Duplicate an existing project to a new one, optionally with AI refinements.
-- **Version History & Snapshots** — Track changes to the project; restore to previous snapshots.
-- **Diff View** — See exactly what changed between AI generations or user edits.
-- **Undo/Redo** — Full undo/redo stack for all file modifications.
-
-### Phase 3: Deployment & Integration (Q3 2026)
-- **One-Click Deploy** — Deploy directly to Vercel, Netlify, or AWS with environment variable setup.
-- **GitHub Integration** — Auto-commit generated code to a GitHub repo; sync changes back.
-- **Docker Support** — Generate Dockerfile and docker-compose.yml; run projects in containers.
-- **Environment Management** — UI for managing .env files and secrets per deployment.
-
-### Phase 4: Advanced AI Features (Q4 2026)
-- **Custom Prompts Library** — Save, organize, and reuse common AI generation prompts.
 - **AI Chat History** — View and replay previous AI generation requests; iterate on past projects.
-- **Multi-LLM Support** — Switch between different AI providers (OpenAI, Claude, Hugging Face).
-- **Batch Generation** — Generate multiple variations of a project with different configurations.
-
-### Phase 5: Team & Enterprise (2027)
-- **Project Permissions** — Role-based access (Owner, Editor, Viewer) for collaborators.
-- **Audit Logs** — Track who made changes and when; compliance-friendly.
-- **Team Workspaces** — Organize projects into teams; shared libraries and templates.
-- **API Keys & Webhooks** — Programmatic access to generate and manage projects.
-
-### Beyond
-- **Mobile App** — Native iOS/Android app for viewing and editing on the go.
-- **Offline Mode** — Work offline; sync when reconnected.
-- **AI Code Review** — AI reviews generated code for best practices and security.
-- **Plugin Ecosystem** — Third-party extensions for custom code generators and integrations.
+- **Diff View** — See exactly what changed between AI generations or user edits.
 
 ---
 
