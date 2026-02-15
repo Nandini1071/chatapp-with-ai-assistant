@@ -4,6 +4,7 @@ import axios from "../config/axios";
 import { intializeSocket, sendMessage } from "../config/socket.js";
 import { userContext } from "../context/UserContext.jsx";
 import Markdown from "markdown-to-jsx";
+import CodeEditor from "../components/CodeEditor";
 
 const Project = () => {
   const location = useLocation();
@@ -13,20 +14,30 @@ const Project = () => {
   const [users, setUsers] = useState([]);
   const [fileTree, setfileTree] = useState({});
   const [currentFile, setcurrentFile] = useState(null);
-  const [openFiles, setopenFiles] = useState([])
+  const [openFiles, setopenFiles] = useState([]);
   const [aiHasFiles, setAiHasFiles] = useState(false);
   const [loadingZip, setLoadingZip] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [messages, setMessages] = useState([]);
   const [project, setproject] = useState(location.state.project);
   const [message, setmessage] = useState("");
+  const [isReplaceDialogOpen, setIsReplaceDialogOpen] = useState(false);
+  const [pendingMessage, setPendingMessage] = useState("");
   const { user } = useContext(userContext);
   const messageRef = useRef();
 
   useEffect(() => {
     console.log("Project component mounted");
     const onDocClick = (e) => {
-      console.debug("document click:", e.target && (e.target.tagName + "#" + (e.target.id || "") + "." + (e.target.className || "")));
+      console.debug(
+        "document click:",
+        e.target &&
+          e.target.tagName +
+            "#" +
+            (e.target.id || "") +
+            "." +
+            (e.target.className || ""),
+      );
     };
     window.addEventListener("click", onDocClick);
 
@@ -45,13 +56,18 @@ const Project = () => {
         }
         const rect = el.getBoundingClientRect();
         const cs = window.getComputedStyle(el);
-        console.log(`Probe ${sel}: rect=${JSON.stringify(rect)}, pointerEvents=${cs.pointerEvents}, visibility=${cs.visibility}, display=${cs.display}, zIndex=${cs.zIndex}`);
+        console.log(
+          `Probe ${sel}: rect=${JSON.stringify(rect)}, pointerEvents=${cs.pointerEvents}, visibility=${cs.visibility}, display=${cs.display}, zIndex=${cs.zIndex}`,
+        );
 
         // attach capture listener to see if events hit this element specifically
         const onCap = (ev) => {
-          console.log(`Capture on ${sel}: type=${ev.type}, target=` + (ev.target && (ev.target.tagName + '#' + (ev.target.id||''))));
+          console.log(
+            `Capture on ${sel}: type=${ev.type}, target=` +
+              (ev.target && ev.target.tagName + "#" + (ev.target.id || "")),
+          );
         };
-        el.addEventListener('click', onCap, true);
+        el.addEventListener("click", onCap, true);
         // store on element so we can remove later
         el.__diag_onCap = onCap;
 
@@ -59,7 +75,11 @@ const Project = () => {
         const cx = rect.left + rect.width / 2;
         const cy = rect.top + rect.height / 2;
         const top = document.elementFromPoint(cx, cy);
-        console.log(`Top element at center of ${sel}:`, top && (top.tagName + '#' + (top.id || '') + '.' + (top.className || '')));
+        console.log(
+          `Top element at center of ${sel}:`,
+          top &&
+            top.tagName + "#" + (top.id || "") + "." + (top.className || ""),
+        );
       });
     };
 
@@ -69,10 +89,14 @@ const Project = () => {
     return () => {
       window.removeEventListener("click", onDocClick);
       // cleanup any attached diag listeners
-      ['[data-test="add-collab-btn"]','[data-test="download-zip-btn"]','[data-test="toggle-panel-btn"]'].forEach((sel) => {
+      [
+        '[data-test="add-collab-btn"]',
+        '[data-test="download-zip-btn"]',
+        '[data-test="toggle-panel-btn"]',
+      ].forEach((sel) => {
         const el = document.querySelector(sel);
         if (el && el.__diag_onCap) {
-          el.removeEventListener('click', el.__diag_onCap, true);
+          el.removeEventListener("click", el.__diag_onCap, true);
           delete el.__diag_onCap;
         }
       });
@@ -133,23 +157,64 @@ const Project = () => {
       });
       setIsModalOpen(false);
       // refresh project data
-      const proj = await axios.get(`/projects/get-project/${location.state.project._id}`);
+      const proj = await axios.get(
+        `/projects/get-project/${location.state.project._id}`,
+      );
       setproject(proj.data.project);
     } catch (err) {
       console.error("addCollaborators error:", err);
-      const msg = err?.response?.data?.message || err?.response?.data || err.message || "Failed to add collaborators";
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data ||
+        err.message ||
+        "Failed to add collaborators";
       setErrorMessage(String(msg));
     }
   }
 
   function sendMess() {
     console.log(user);
+    
+    // If there are already files, show dialog to ask Replace or Merge
+    if (Object.keys(fileTree).length > 0) {
+      setPendingMessage(message);
+      setIsReplaceDialogOpen(true);
+      return;
+    }
+    
+    // Otherwise send immediately
+    performSendMessage(message);
+    setmessage("");
+  }
+
+  function performSendMessage(messageText) {
     sendMessage("project-message", {
-      message,
+      message: messageText,
       sender: user,
     });
-    setMessages((prevMessages) => [...prevMessages, { sender: user, message }]);
+    setMessages((prevMessages) => [...prevMessages, { sender: user, message: messageText }]);
+  }
+
+  function handleReplace() {
+    // Clear all existing files
+    setfileTree({});
+    setopenFiles([]);
+    setcurrentFile(null);
+    setAiHasFiles(false);
+    
+    // Send the message
+    performSendMessage(pendingMessage);
     setmessage("");
+    setIsReplaceDialogOpen(false);
+    setPendingMessage("");
+  }
+
+  function handleMerge() {
+    // Keep existing files and just add new ones
+    performSendMessage(pendingMessage);
+    setmessage("");
+    setIsReplaceDialogOpen(false);
+    setPendingMessage("");
   }
 
   useEffect(() => {
@@ -185,7 +250,11 @@ const Project = () => {
         const candidate = tryParse(rawMsg) || tryParse(parsedField);
         console.log("parsed candidate:", candidate);
         if (candidate && typeof candidate === "object") {
-          const fileTreeSource = candidate.fileTree || candidate.files || candidate.filesTree || candidate;
+          const fileTreeSource =
+            candidate.fileTree ||
+            candidate.files ||
+            candidate.filesTree ||
+            candidate;
           const normalized = {};
 
           const flatten = (node, path = "") => {
@@ -193,31 +262,66 @@ const Project = () => {
             if (Array.isArray(node)) {
               node.forEach((item) => {
                 const name = item.name || item.filename || item.path;
-                const contents = item.contents || item.content || item.body || (item.file && (item.file.contents || item.file)) || JSON.stringify(item);
+                const contents =
+                  item.contents ||
+                  item.content ||
+                  item.body ||
+                  (item.file && (item.file.contents || item.file)) ||
+                  JSON.stringify(item);
                 if (name) {
                   const key = path ? `${path}/${name}` : name;
-                  normalized[key] = { content: typeof contents === "string" ? contents : JSON.stringify(contents) };
+                  normalized[key] = {
+                    content:
+                      typeof contents === "string"
+                        ? contents
+                        : JSON.stringify(contents),
+                  };
                 }
               });
               return;
             }
 
-            if (node && typeof node === "object" && (node.file || node.content || node.contents)) {
+            if (
+              node &&
+              typeof node === "object" &&
+              (node.file || node.content || node.contents)
+            ) {
               if (path && (node.file || node.content || node.contents)) {
-                const contents = node.content || node.contents || (node.file && (node.file.contents || node.file)) || JSON.stringify(node);
-                normalized[path] = { content: typeof contents === "string" ? contents : JSON.stringify(contents) };
+                const contents =
+                  node.content ||
+                  node.contents ||
+                  (node.file && (node.file.contents || node.file)) ||
+                  JSON.stringify(node);
+                normalized[path] = {
+                  content:
+                    typeof contents === "string"
+                      ? contents
+                      : JSON.stringify(contents),
+                };
                 return;
               }
             }
 
-            if (node && typeof node === "object" && node.directory && typeof node.directory === "object") {
-              Object.keys(node.directory).forEach((k) => flatten(node.directory[k], path ? `${path}/${k}` : k));
+            if (
+              node &&
+              typeof node === "object" &&
+              node.directory &&
+              typeof node.directory === "object"
+            ) {
+              Object.keys(node.directory).forEach((k) =>
+                flatten(node.directory[k], path ? `${path}/${k}` : k),
+              );
               return;
             }
 
             if (node && typeof node === "object") {
               Object.keys(node).forEach((k) => {
-                if (k === "text" || k === "buildCommand" || k === "startCommand") return;
+                if (
+                  k === "text" ||
+                  k === "buildCommand" ||
+                  k === "startCommand"
+                )
+                  return;
                 flatten(node[k], path ? `${path}/${k}` : k);
               });
             }
@@ -226,7 +330,10 @@ const Project = () => {
           flatten(fileTreeSource, "");
 
           if (Object.keys(normalized).length > 0) {
-            console.log("Merging AI fileTree into editor:", Object.keys(normalized));
+            console.log(
+              "Merging AI fileTree into editor:",
+              Object.keys(normalized),
+            );
             setfileTree((prev) => ({ ...prev, ...normalized }));
             setAiHasFiles(true);
             const firstFile = Object.keys(normalized)[0];
@@ -285,7 +392,11 @@ const Project = () => {
       return;
     }
     try {
-      const resp = await axios.post("/ai/zip", { fileTree }, { responseType: "arraybuffer" });
+      const resp = await axios.post(
+        "/ai/zip",
+        { fileTree },
+        { responseType: "arraybuffer" },
+      );
       const blob = new Blob([resp.data], { type: "application/zip" });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -297,7 +408,10 @@ const Project = () => {
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error("downloadZip error:", err);
-      const msg = err?.response?.data?.message || err?.message || "Failed to download zip";
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Failed to download zip";
       setErrorMessage(String(msg));
     } finally {
       setLoadingZip(false);
@@ -307,20 +421,27 @@ const Project = () => {
   return (
     <main className="h-screen w-screen flex">
       <section className="left flex flex-col h-screen min-w-96 bg-gradient-to-b from-slate-50 to-slate-100 relative">
-        <header style={{ zIndex: 50, pointerEvents: "auto" }} className="flex justify-between items-center p-4 px-6 w-full bg-gradient-to-r from-indigo-600 to-indigo-500 text-white absolute top-0 shadow-lg rounded-b-lg">
+        <header
+          style={{ zIndex: 50, pointerEvents: "auto" }}
+          className="flex justify-between items-center p-4 px-6 w-full bg-gradient-to-r from-indigo-600 to-indigo-500 text-white absolute top-0 shadow-lg rounded-b-lg"
+        >
           <div className="flex items-center gap-4">
             <div className="rounded-full bg-white/20 p-2">
               <i className="ri-hashtag" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold">{project?.title || project?.name || "Project"}</h2>
+              <h2 className="text-lg font-semibold">
+                {project?.title || project?.name || "Project"}
+              </h2>
               <p className="text-xs opacity-80">Collaborative AI workspace</p>
             </div>
           </div>
 
           <div className="flex w-full gap-3 items-center mt-3 md:mt-0 md:w-auto">
             <div className="flex-1 md:flex-none">
-              <div className="text-sm opacity-90">{project?.description || ""}</div>
+              <div className="text-sm opacity-90">
+                {project?.description || ""}
+              </div>
             </div>
             <div className="flex gap-3 items-center">
               {aiHasFiles && (
@@ -462,7 +583,9 @@ const Project = () => {
         <aside className="explore h-full w-72 p-4">
           <div className="file-tree w-full bg-white rounded-lg shadow p-3 divide-y">
             {Object.keys(fileTree).length === 0 ? (
-              <div className="p-4 text-sm text-slate-500">No files yet — AI will populate files here.</div>
+              <div className="p-4 text-sm text-slate-500">
+                No files yet — AI will populate files here.
+              </div>
             ) : (
               Object.keys(fileTree).map((file) => (
                 <button
@@ -471,10 +594,12 @@ const Project = () => {
                     setcurrentFile(file);
                     setopenFiles([...new Set([...openFiles, file])]);
                   }}
-                  className={`w-full text-left flex items-center gap-3 px-3 py-2 hover:bg-indigo-50 transition-colors ${currentFile === file ? 'bg-indigo-50' : ''}`}
+                  className={`w-full text-left flex items-center gap-3 px-3 py-2 hover:bg-indigo-50 transition-colors ${currentFile === file ? "bg-indigo-50" : ""}`}
                 >
                   <div className="w-6 text-indigo-500">📄</div>
-                  <div className="flex-1 truncate text-sm font-medium text-slate-800">{file}</div>
+                  <div className="flex-1 truncate text-sm font-medium text-slate-800">
+                    {file}
+                  </div>
                 </button>
               ))
             )}
@@ -489,30 +614,33 @@ const Project = () => {
                   <button
                     key={index}
                     onClick={() => setcurrentFile(file)}
-                    className={`px-3 py-1 rounded-t-md ${currentFile === file ? 'bg-white' : 'bg-slate-100'}`}
+                    className={`px-3 py-1 rounded-t-md ${currentFile === file ? "bg-white" : "bg-slate-100"}`}
                   >
                     {file}
                   </button>
                 ))}
                 <div className="ml-auto">
-                  <button className="p-2 text-slate-600" onClick={() => setcurrentFile(null)}>
+                  <button
+                    className="p-2 text-slate-600"
+                    onClick={() => setcurrentFile(null)}
+                  >
                     <i className="ri-close-fill"></i>
                   </button>
                 </div>
               </div>
-              <div className="editor-content grow w-full bg-slate-900 p-4">
+              <div className="editor-content grow w-full bg-slate-900">
                 {fileTree[currentFile] && (
-                  <textarea
-                    value={fileTree[currentFile].content}
-                    onChange={(e) => {
+                  <CodeEditor
+                    filename={currentFile}
+                    content={fileTree[currentFile].content}
+                    onChange={(newContent) => {
                       setfileTree({
                         ...fileTree,
                         [currentFile]: {
-                          content: e.target.value,
+                          content: newContent,
                         },
                       });
                     }}
-                    className="w-full h-full p-4 bg-slate-900 text-white outline-none border border-slate-800 resize-none rounded-md font-mono text-sm"
                   />
                 )}
               </div>
@@ -555,6 +683,42 @@ const Project = () => {
               onClick={addCollaborators}
             >
               Add Collaborators
+            </button>
+          </div>
+        </div>
+      )}
+      
+      {isReplaceDialogOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg w-96 shadow-xl">
+            <h2 className="text-xl font-semibold mb-3">Files Already Exist</h2>
+            <p className="text-slate-600 mb-6">
+              You already have {Object.keys(fileTree).length} file(s) in the editor. What would you like to do?
+            </p>
+            <div className="flex gap-3">
+              <button
+                className="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-md transition-colors"
+                onClick={handleReplace}
+              >
+                <div className="font-semibold">Replace</div>
+                <div className="text-xs opacity-90">Clear old files & generate new ones</div>
+              </button>
+              <button
+                className="flex-1 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md transition-colors"
+                onClick={handleMerge}
+              >
+                <div className="font-semibold">Merge</div>
+                <div className="text-xs opacity-90">Keep old & add new files</div>
+              </button>
+            </div>
+            <button
+              className="w-full mt-3 text-slate-600 hover:text-slate-800 text-sm"
+              onClick={() => {
+                setIsReplaceDialogOpen(false);
+                setPendingMessage("");
+              }}
+            >
+              Cancel
             </button>
           </div>
         </div>

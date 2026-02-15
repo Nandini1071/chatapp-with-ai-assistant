@@ -11,7 +11,9 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.18",
+    "ace-builds": "^1.43.6",
     "axios": "^1.13.2",
+    "codemirror": "^6.0.1",
     "jwt-decode": "^4.0.0",
     "markdown-to-jsx": "^9.6.1",
     "react": "^19.2.0",
