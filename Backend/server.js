@@ -1,13 +1,12 @@
+import dotenv from "dotenv";
+dotenv.config();
 import http from "http";
 import app from "./app.js";
-import dotenv from "dotenv";
 import { Server } from "socket.io";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 import Project from "./models/project.model.js";
 import { generateResult } from "./services/ai.service.js";
-
-dotenv.config();
 
 const port = process.env.PORT || 3000;
 
@@ -65,6 +64,8 @@ io.on("connection", (socket) => {
       })
       return;
     }
+  });socket.on("replace-files", () => {
+    io.to(socket.roomId).emit("replace-files");
   });
   socket.on("disconnect", () => {
     console.log("disconnected");

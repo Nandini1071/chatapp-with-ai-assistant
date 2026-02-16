@@ -174,14 +174,14 @@ const Project = () => {
 
   function sendMess() {
     console.log(user);
-    
+
     // If there are already files, show dialog to ask Replace or Merge
     if (Object.keys(fileTree).length > 0) {
       setPendingMessage(message);
       setIsReplaceDialogOpen(true);
       return;
     }
-    
+
     // Otherwise send immediately
     performSendMessage(message);
     setmessage("");
@@ -192,18 +192,32 @@ const Project = () => {
       message: messageText,
       sender: user,
     });
-    setMessages((prevMessages) => [...prevMessages, { sender: user, message: messageText }]);
+    setMessages((prevMessages) => [
+      ...prevMessages,
+      { sender: user, message: messageText },
+    ]);
   }
 
+  // function handleReplace() {
+  //   // Clear all existing files
+  //   setfileTree({});
+  //   setopenFiles([]);
+  //   setcurrentFile(null);
+  //   setAiHasFiles(false);
+
+  //   // Send the message
+  //   performSendMessage(pendingMessage);
+  //   setmessage("");
+  //   setIsReplaceDialogOpen(false);
+  //   setPendingMessage("");
+  // }
   function handleReplace() {
-    // Clear all existing files
-    setfileTree({});
-    setopenFiles([]);
-    setcurrentFile(null);
-    setAiHasFiles(false);
-    
-    // Send the message
+    // Tell everyone to clear files
+    sendMessage("replace-files", {});
+
+    // Then send AI message
     performSendMessage(pendingMessage);
+
     setmessage("");
     setIsReplaceDialogOpen(false);
     setPendingMessage("");
@@ -350,6 +364,14 @@ const Project = () => {
 
     // attach handler directly to socket and cleanup on unmount
     socket.on("project-message", handleProjectMessage);
+    socket.on("replace-files", () => {
+      console.log("Received replace-files event");
+
+      setfileTree({});
+      setopenFiles([]);
+      setcurrentFile(null);
+      setAiHasFiles(false);
+    });
 
     axios
       .get("/users/all")
@@ -371,6 +393,7 @@ const Project = () => {
 
     return () => {
       socket.off("project-message", handleProjectMessage);
+      socket.off("replace-files");
       socket.disconnect();
     };
   }, [project._id]);
@@ -687,13 +710,14 @@ const Project = () => {
           </div>
         </div>
       )}
-      
+
       {isReplaceDialogOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg w-96 shadow-xl">
             <h2 className="text-xl font-semibold mb-3">Files Already Exist</h2>
             <p className="text-slate-600 mb-6">
-              You already have {Object.keys(fileTree).length} file(s) in the editor. What would you like to do?
+              You already have {Object.keys(fileTree).length} file(s) in the
+              editor. What would you like to do?
             </p>
             <div className="flex gap-3">
               <button
@@ -701,14 +725,18 @@ const Project = () => {
                 onClick={handleReplace}
               >
                 <div className="font-semibold">Replace</div>
-                <div className="text-xs opacity-90">Clear old files & generate new ones</div>
+                <div className="text-xs opacity-90">
+                  Clear old files & generate new ones
+                </div>
               </button>
               <button
                 className="flex-1 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md transition-colors"
                 onClick={handleMerge}
               >
                 <div className="font-semibold">Merge</div>
-                <div className="text-xs opacity-90">Keep old & add new files</div>
+                <div className="text-xs opacity-90">
+                  Keep old & add new files
+                </div>
               </button>
             </div>
             <button
