@@ -14,26 +14,23 @@ import { getLanguageMode } from "../utils/languageDetector";
 const CodeEditor = ({ filename, content, onChange }) => {
   const editorRef = useRef(null);
   const aceEditorRef = useRef(null);
+  const isSettingValue = useRef(false);
 
+  // Initialize only once
   useEffect(() => {
     if (!editorRef.current) return;
 
-    // Initialize Ace Editor
-    const editor = ace.edit(editorRef.current, {
-      theme: "ace/theme/monokai",
-      mode: getLanguageMode(filename),
-      fontSize: 14,
-      fontFamily: '"Fira Code", monospace',
-      enableLiveAutocompletion: true,
-      showPrintMargin: false,
-      wrap: true,
-    });
+    const editor = ace.edit(editorRef.current);
+    editor.setTheme("ace/theme/monokai");
+    editor.session.setMode(getLanguageMode(filename));
+    editor.setFontSize(14);
+    editor.session.setUseWrapMode(true);
+    editor.setShowPrintMargin(false);
 
-    // Set initial content
-    editor.setValue(content, -1);
+    editor.setValue(content || "", -1);
 
-    // Sync changes to React state
     editor.session.on("change", () => {
+      if (isSettingValue.current) return;
       onChange(editor.getValue());
     });
 
@@ -43,17 +40,28 @@ const CodeEditor = ({ filename, content, onChange }) => {
       editor.destroy();
       aceEditorRef.current = null;
     };
-  }, [filename]); // Reinitialize when file changes
+  }, []);
 
-  // Update content when it changes externally
+  // Update mode when filename changes
   useEffect(() => {
-    if (
-      aceEditorRef.current &&
-      content !== aceEditorRef.current.getValue()
-    ) {
-      const currentPosition = aceEditorRef.current.getCursorPosition();
-      aceEditorRef.current.setValue(content, -1);
-      aceEditorRef.current.moveCursorToPosition(currentPosition);
+    if (aceEditorRef.current) {
+      aceEditorRef.current.session.setMode(getLanguageMode(filename));
+    }
+  }, [filename]);
+
+  // Update content safely
+  useEffect(() => {
+    if (!aceEditorRef.current) return;
+
+    const editor = aceEditorRef.current;
+    const currentValue = editor.getValue();
+
+    if (content !== currentValue) {
+      isSettingValue.current = true;
+      const cursor = editor.getCursorPosition();
+      editor.setValue(content || "", -1);
+      editor.moveCursorToPosition(cursor);
+      isSettingValue.current = false;
     }
   }, [content]);
 
@@ -61,10 +69,7 @@ const CodeEditor = ({ filename, content, onChange }) => {
     <div
       ref={editorRef}
       className="w-full h-full"
-      style={{
-        width: "100%",
-        height: "100%",
-      }}
+      style={{ width: "100%", height: "100%" }}
     />
   );
 };

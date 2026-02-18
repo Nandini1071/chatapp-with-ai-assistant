@@ -47,26 +47,38 @@ io.on("connection", (socket) => {
   console.log("connected");
   socket.join(socket.roomId);
 
-  socket.on("project-message",async (data) => {
+  socket.on("project-message", async (data) => {
     console.log(data);
-    const message=data.message;
-    const aiIsPresentInMessage=message.includes("@ai");
+    const message = data.message;
+    const aiIsPresentInMessage = message.includes("@ai");
     socket.broadcast.to(socket.roomId).emit("project-message", data);
-    if(aiIsPresentInMessage){
-      const prompt=message.replace("@ai",'');
-      const result=await generateResult(prompt);
-      io.to(socket.roomId).emit("project-message",{
+    if (aiIsPresentInMessage) {
+      const prompt = message.replace("@ai", "");
+      const result = await generateResult(prompt);
+      io.to(socket.roomId).emit("project-message", {
         message: result,
-        sender:{
-          _id: 'ai',
-          email: 'AI'
-        }
-      })
+        sender: {
+          _id: "ai",
+          email: "AI",
+        },
+      });
       return;
     }
-  });socket.on("replace-files", () => {
+  });
+  socket.on("replace-files", () => {
     io.to(socket.roomId).emit("replace-files");
   });
+  // 🔥 Real-time code sync
+  socket.on("code-change", (data) => {
+    const { fileName, content } = data;
+
+    // Broadcast to everyone EXCEPT sender
+    socket.to(socket.roomId).emit("code-change", {
+      fileName,
+      content,
+    });
+  });
+
   socket.on("disconnect", () => {
     console.log("disconnected");
     socket.leave(socket.roomId);

@@ -197,19 +197,6 @@ const Project = () => {
       { sender: user, message: messageText },
     ]);
   }
-
-  // function handleReplace() {
-  //   // Clear all existing files
-  //   setfileTree({});
-  //   setopenFiles([]);
-  //   setcurrentFile(null);
-  //   setAiHasFiles(false);
-
-  //   // Send the message
-  //   performSendMessage(pendingMessage);
-  //   setmessage("");
-  //   setIsReplaceDialogOpen(false);
-  //   setPendingMessage("");
   // }
   function handleReplace() {
     // Tell everyone to clear files
@@ -237,6 +224,8 @@ const Project = () => {
     const handleProjectMessage = (data) => {
       console.log("socket message:", data);
       setMessages((prevMessages) => [...prevMessages, data]);
+      console.log("RAW MESSAGE TYPE:", typeof data.message);
+      console.log("RAW MESSAGE VALUE:", data.message);
 
       const tryParse = (maybe) => {
         if (maybe === null || maybe === undefined) return null;
@@ -261,95 +250,38 @@ const Project = () => {
       try {
         const rawMsg = data.message;
         const parsedField = parseMessageField(rawMsg);
-        const candidate = tryParse(rawMsg) || tryParse(parsedField);
-        console.log("parsed candidate:", candidate);
-        if (candidate && typeof candidate === "object") {
-          const fileTreeSource =
-            candidate.fileTree ||
-            candidate.files ||
-            candidate.filesTree ||
-            candidate;
+        const candidate =
+          typeof rawMsg === "object" ? rawMsg : tryParse(rawMsg);
+        console.log("Parsed candidate:", candidate);
+        if (candidate?.fileTree && typeof candidate.fileTree === "object") {
           const normalized = {};
 
-          const flatten = (node, path = "") => {
-            if (!node) return;
-            if (Array.isArray(node)) {
-              node.forEach((item) => {
-                const name = item.name || item.filename || item.path;
-                const contents =
-                  item.contents ||
-                  item.content ||
-                  item.body ||
-                  (item.file && (item.file.contents || item.file)) ||
-                  JSON.stringify(item);
-                if (name) {
-                  const key = path ? `${path}/${name}` : name;
-                  normalized[key] = {
-                    content:
-                      typeof contents === "string"
-                        ? contents
-                        : JSON.stringify(contents),
-                  };
-                }
-              });
-              return;
-            }
+          Object.entries(candidate.fileTree).forEach(([fileName, fileObj]) => {
+            const content =
+              fileObj?.content ||
+              fileObj?.contents ||
+              fileObj?.file?.contents ||
+              fileObj?.file ||
+              "";
 
-            if (
-              node &&
-              typeof node === "object" &&
-              (node.file || node.content || node.contents)
-            ) {
-              if (path && (node.file || node.content || node.contents)) {
-                const contents =
-                  node.content ||
-                  node.contents ||
-                  (node.file && (node.file.contents || node.file)) ||
-                  JSON.stringify(node);
-                normalized[path] = {
-                  content:
-                    typeof contents === "string"
-                      ? contents
-                      : JSON.stringify(contents),
-                };
-                return;
-              }
-            }
-
-            if (
-              node &&
-              typeof node === "object" &&
-              node.directory &&
-              typeof node.directory === "object"
-            ) {
-              Object.keys(node.directory).forEach((k) =>
-                flatten(node.directory[k], path ? `${path}/${k}` : k),
-              );
-              return;
-            }
-
-            if (node && typeof node === "object") {
-              Object.keys(node).forEach((k) => {
-                if (
-                  k === "text" ||
-                  k === "buildCommand" ||
-                  k === "startCommand"
-                )
-                  return;
-                flatten(node[k], path ? `${path}/${k}` : k);
-              });
-            }
-          };
-
-          flatten(fileTreeSource, "");
+            normalized[fileName] = {
+              content:
+                typeof content === "string"
+                  ? content
+                  : JSON.stringify(content, null, 2),
+            };
+          });
 
           if (Object.keys(normalized).length > 0) {
-            console.log(
-              "Merging AI fileTree into editor:",
-              Object.keys(normalized),
-            );
-            setfileTree((prev) => ({ ...prev, ...normalized }));
+            console.log("Setting AI files:", normalized);
+
+            setfileTree((prev) => ({
+              ...prev,
+              ...normalized,
+            }));
+
             setAiHasFiles(true);
+
             const firstFile = Object.keys(normalized)[0];
             if (firstFile) {
               setcurrentFile(firstFile);
@@ -364,6 +296,18 @@ const Project = () => {
 
     // attach handler directly to socket and cleanup on unmount
     socket.on("project-message", handleProjectMessage);
+    socket.on("code-change", ({ fileName, content }) => {
+      console.log("Received code change:", fileName);
+
+      setfileTree((prev) => ({
+        ...prev,
+        [fileName]: {
+          ...prev[fileName],
+          content,
+        },
+      }));
+    });
+
     socket.on("replace-files", () => {
       console.log("Received replace-files event");
 
@@ -394,6 +338,7 @@ const Project = () => {
     return () => {
       socket.off("project-message", handleProjectMessage);
       socket.off("replace-files");
+      socket.off("code-change");
       socket.disconnect();
     };
   }, [project._id]);
@@ -443,7 +388,7 @@ const Project = () => {
 
   return (
     <main className="h-screen w-screen flex">
-      <section className="left flex flex-col h-screen min-w-96 bg-gradient-to-b from-slate-50 to-slate-100 relative">
+      <section className="left flex flex-col h-screen w-[420px] flex-shrink-0 bg-gradient-to-b from-slate-50 to-slate-100 relative">
         <header
           style={{ zIndex: 50, pointerEvents: "auto" }}
           className="flex justify-between items-center p-4 px-6 w-full bg-gradient-to-r from-indigo-600 to-indigo-500 text-white absolute top-0 shadow-lg rounded-b-lg"
@@ -509,10 +454,10 @@ const Project = () => {
             </div>
           )}
         </header>
-        <div className="conversation-area pt-24 pb-10 flex flex-col grow relative max-h-full">
+        <div className="conversation-area pt-24 pb-10 flex flex-col h-full relative overflow-hidden">
           <div
             ref={messageRef}
-            className="message-box grow flex flex-col gap-2 p-2 overflow-auto max-h-full"
+            className="message-box flex-1 overflow-y-auto flex flex-col gap-2 p-2"
           >
             {messages.map((msg, index) => {
               // Some tokens only include `email` (no `_id`), so compare by `_id` OR `email`.
@@ -654,14 +599,21 @@ const Project = () => {
               <div className="editor-content grow w-full bg-slate-900">
                 {fileTree[currentFile] && (
                   <CodeEditor
+                    key={currentFile}
                     filename={currentFile}
-                    content={fileTree[currentFile].content}
-                    onChange={(newContent) => {
-                      setfileTree({
-                        ...fileTree,
+                    content={fileTree[currentFile]?.content || ""}
+                    onChange={(value) => {
+                      setfileTree((prev) => ({
+                        ...prev,
                         [currentFile]: {
-                          content: newContent,
+                          ...prev[currentFile],
+                          content: value,
                         },
+                      }));
+
+                      sendMessage("code-change", {
+                        fileName: currentFile,
+                        content: value,
                       });
                     }}
                   />

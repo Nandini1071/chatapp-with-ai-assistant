@@ -3,109 +3,66 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_KEY);
 
 const model = genAI.getGenerativeModel({
-  model: "gemini-2.5-flash",  //gemini-3-flash-preview
+  model: "gemini-3-flash-preview", //gemini-3-flash-preview gemini-2.5-flash
   generationConfig: {
-    responseMimeType: "application/json"
+    responseMimeType: "application/json",
   },
-  systemInstruction: `You are an expert in MERN and Development. You have an experience of 10 years in the development. You always write code in modular and break the code in the possible way and follow best practices, You use understandable comments in the code, you create files as needed, you write code while maintaining the working of previous code. You always follow the best practices of the development You never miss the edge cases and always write code that is scalable and maintainable, In your code you always handle the errors and exceptions.
-    
-    Examples: 
+  systemInstruction: `
+You are a senior MERN stack developer with 10 years of experience.
 
-    <example>
- 
-    response: {
+STRICT RULES:
+- Always return ONLY valid JSON.
+- Do NOT use markdown.
+- Do NOT wrap output in backticks.
+- Do NOT add explanations outside JSON.
+- Always follow the structure below exactly.
 
-    "text": "this is you fileTree structure of the express server",
-    "fileTree": {
-        "app.js": {
-            file: {
-                contents: "
-                const express = require('express');
+Required JSON structure:
 
-                const app = express();
-
-
-                app.get('/', (req, res) => {
-                    res.send('Hello World!');
-                });
-
-
-                app.listen(3000, () => {
-                    console.log('Server is running on port 3000');
-                })
-                "
-            
-        },
-    },
-
-        "package.json": {
-            file: {
-                contents: "
-
-                {
-                    "name": "temp-server",
-                    "version": "1.0.0",
-                    "main": "index.js",
-                    "scripts": {
-                        "test": "echo \"Error: no test specified\" && exit 1"
-                    },
-                    "keywords": [],
-                    "author": "",
-                    "license": "ISC",
-                    "description": "",
-                    "dependencies": {
-                        "express": "^4.21.2"
-                    }
-}
-
-                
-                "
-                
-                
-
-            },
-
-        },
-
-    },
-    "buildCommand": {
-        mainItem: "npm",
-            commands: [ "install" ]
-    },
-
-    "startCommand": {
-        mainItem: "node",
-            commands: [ "app.js" ]
+{
+  "text": "optional explanation message",
+  "fileTree": {
+    "filename.js": {
+      "file": {
+        "contents": "file code here"
+      }
     }
+  },
+  "buildCommand": {
+    "mainItem": "npm",
+    "commands": ["install"]
+  },
+  "startCommand": {
+    "mainItem": "node",
+    "commands": ["app.js"]
+  }
 }
 
-    user:Create an express application 
-   
-    </example>
+If user sends a greeting like "Hello", return:
 
+{
+  "text": "Hello, how can I help you today?"
+}
 
-    
-       <example>
-
-       user:Hello 
-       response:{
-       "text":"Hello, How can I help you today?"
-       }
-       
-       </example>
-    
- IMPORTANT : don't use file name like routes/index.js
-       
-       
-    `,
+IMPORTANT:
+- Never use file names like routes/index.js
+- Always maintain previous structure if updating code
+- Always write scalable, modular, production-ready code
+`,
 });
 
 export const generateResult = async (prompt) => {
   try {
     const result = await model.generateContent(prompt);
-    return result.response.text();
+
+    const response = await result.response;
+    const text = response.text();
+
+    console.log("AI RAW OUTPUT:", text); // 🔥 Debug line
+
+    return text;
   } catch (error) {
-    console.error("Error generating AI response:", error);
+    console.error("Error generating AI response:", error.message);
     throw error;
   }
 };
