@@ -164,16 +164,6 @@ npm run dev
 
 ---
 
-## 🔮 Upcoming Features (Roadmap)
-
-- **Multi-file Batch Edit** — Edit multiple files and save all changes at once.
-- **File Templates** — Pre-built templates for common project types (React, Node, Django, etc.).
-- **Live Preview** — Preview generated HTML/React projects in an embedded browser window.
-- **AI Chat History** — View and replay previous AI generation requests; iterate on past projects.
-- **Diff View** — See exactly what changed between AI generations or user edits.
-
----
-
 **Built with ❤️ using React, Express, WebSockets, and MongoDB.**
 
 - `GET /projects/get-project/:projectId` — Get project details.
